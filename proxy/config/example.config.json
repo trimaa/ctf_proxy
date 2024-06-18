@@ -1,28 +1,29 @@
 {
   "services": [
       {
-          "name": "http_service",
-          "target_ip": "http_service",
-          "target_port": 80,
-          "listen_port": 80,
-          "http": true
-      },
-      {
-          "name": "https_service",
-          "target_ip": "https_service",
+          "name": "httpsservice",
+          "target_ip": "host.docker.internal",
           "target_port": 443,
           "listen_port": 443,
-          "http": true,
+          "http": false,
           "ssl": {
-              "server_certificate": "example.pem",
-              "server_key": "example.pem"
+            "server_certificate": "zertifikat.cer",
+            "server_key": "private.key"
           }
-      }
+      },
+      
+      {
+        "name": "httpservice",
+        "target_ip": "host.docker.internal",
+        "target_port": 80,
+        "listen_port": 80,
+        "http": true
+    }
   ],
   
   "global_config": {
       "keyword": "EH! VOLEVI",
-      "verbose": false,
+      "verbose": true,
       "nginx": {
         "connect_timeout": 5,
         "max_fails": 1,
