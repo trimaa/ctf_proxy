@@ -1,4 +1,5 @@
 from src.http_parsing import HttpMessageParser, HttpMessage
+from src.pcap_export import PCAPExporter
 from collections import deque
 
 # class NoIndexError(deque):
@@ -13,6 +14,7 @@ class Stream():
         self.current_message = b""
         self.previous_messages = deque(maxlen=max_stored_messages)
         self._max_message_size = max_message_size
+        self.pcap_exporter = PCAPExporter('httpsservice')
 
     def set_current_message(self, data: bytes):
         pass
@@ -31,6 +33,7 @@ class TCPStream(Stream):
         else:
             self.previous_messages.appendleft(self.current_message[-self._max_message_size])
         self.current_message = data
+        self.pcap_exporter.add_packet(data)
 class HTTPStream(Stream):
     """
     Class for storing HTTP data of a single connection.
@@ -55,6 +58,7 @@ class HTTPStream(Stream):
             self.previous_messages.appendleft(self.current_message[:self._max_message_size])
         
         self.current_message = data
+        self.pcap_exporter.add_packet(data)
         
         try:            
             self.previous_http_messages.appendleft(HttpMessageParser(self.previous_messages[0]).to_message())
