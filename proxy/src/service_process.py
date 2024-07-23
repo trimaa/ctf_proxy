@@ -94,9 +94,9 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
     # This loop ends when no more data is received on either the local or the
     # remote socket
     if service.http:
-        stream = HTTPStream(global_config["max_stored_messages"], global_config["max_message_size"]) 
+        stream = HTTPStream(service.name,global_config["max_stored_messages"], global_config["max_message_size"]) 
     else:
-        stream = TCPStream(global_config["max_stored_messages"], global_config["max_message_size"])
+        stream = TCPStream(service.name,global_config["max_stored_messages"], global_config["max_message_size"])
 
     connection_open = True
     while connection_open:
@@ -132,7 +132,7 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
                     raise serr
 
             try:
-                stream.set_current_message(utils.receive_from(sock, service.http, global_config["verbose"]))
+                stream.set_current_message(utils.receive_from(sock, service.http, global_config["verbose"]),sock)
             except socket.error as serr:
                 utils.vprint(
                     f"{time.strftime('%Y%m%d-%H%M%S')}: Socket exception in connection_thread: connection reset by local or remote host")

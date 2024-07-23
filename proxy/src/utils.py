@@ -22,6 +22,7 @@ def vprint(msg, is_verbose):
 def receive_from(s: socket.socket, http, verbose=False):
     """Receive data from a socket until no more data is there"""
     b = b""
+    http = False
     if not http:
         while True:
             data = s.recv(4096)

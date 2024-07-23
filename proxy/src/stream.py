@@ -1,3 +1,4 @@
+import socket
 from src.http_parsing import HttpMessageParser, HttpMessage
 from src.pcap_export import PCAPExporter
 from collections import deque
@@ -10,14 +11,15 @@ from collections import deque
 #             return b""
         
 class Stream():
-    def __init__(self, max_stored_messages: int = 50, max_message_size: int = 65535):
+    def __init__(self,service_name: str, max_stored_messages: int = 50, max_message_size: int = 65535):
         self.current_message = b""
         self.previous_messages = deque(maxlen=max_stored_messages)
         self._max_message_size = max_message_size
-        self.pcap_exporter = PCAPExporter('httpsservice')
+        self.pcap_exporter = PCAPExporter(service_name)
 
-    def set_current_message(self, data: bytes):
-        pass
+    def set_current_message(self, data: bytes, socket: socket.socket):
+        if (len(data) != 0):
+            self.pcap_exporter.add_packet(data, socket)
 
 class TCPStream(Stream):
     """
@@ -27,13 +29,13 @@ class TCPStream(Stream):
 
     previous_messages: latest max_stored_messages messages of the connection before current_message (newest to oldest)
     """
-    def set_current_message(self, data: bytes):
+    def set_current_message(self, data: bytes, socket: socket.socket):
+        super().set_current_message(data, socket)
         if len(self.current_message) <= self._max_message_size:
             self.previous_messages.appendleft(self.current_message)
         else:
             self.previous_messages.appendleft(self.current_message[-self._max_message_size])
         self.current_message = data
-        self.pcap_exporter.add_packet(data)
 class HTTPStream(Stream):
     """
     Class for storing HTTP data of a single connection.
@@ -46,19 +48,19 @@ class HTTPStream(Stream):
 
     previous_http_messages: previous_messages parsed as HttpMessage (newest to oldest)
     """
-    def __init__(self, max_stored_messages: int = 50, max_message_size: int = 65535):
-        super().__init__(max_stored_messages, max_message_size)
+    def __init__(self, service_name: str, max_stored_messages: int = 50, max_message_size: int = 65535):
+        super().__init__(service_name, max_stored_messages, max_message_size)
         self.current_http_message = None
         self.previous_http_messages: deque[HttpMessage] = deque(maxlen=max_stored_messages)
 
-    def set_current_message(self, data: bytes):
+    def set_current_message(self, data: bytes, socket: socket.socket):
+        super().set_current_message(data, socket)
         if len(self.current_message) <= self._max_message_size:
             self.previous_messages.appendleft(self.current_message)            
         else:
             self.previous_messages.appendleft(self.current_message[:self._max_message_size])
         
         self.current_message = data
-        self.pcap_exporter.add_packet(data)
         
         try:            
             self.previous_http_messages.appendleft(HttpMessageParser(self.previous_messages[0]).to_message())
