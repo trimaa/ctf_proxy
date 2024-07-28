@@ -1,4 +1,5 @@
 from watchdog.events import RegexMatchingEventHandler
+from src.pcap_export import PCAPExporter
 from src.filter_modules import import_modules
 from dataclasses import dataclass
 from typing import List
@@ -40,6 +41,7 @@ class Service:
             self.ssl = SSLConfig(**ssl)
         else:
             self.ssl = None
+        self.pcap_exporter = PCAPExporter(name)
 
 
 @dataclass
