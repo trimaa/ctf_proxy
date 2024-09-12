@@ -40,6 +40,8 @@ class PCAPExporter:
             if len(self.packets) == 0:
                 return        
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            directory = os.getenv('PCAP_DIR_PATH', './')
+            os.makedirs(directory, exist_ok=True) 
             filename = f"{self.filename}_{timestamp}.pcap"
             with open(filename, 'wb') as f:
                 writer = dpkt.pcap.Writer(f, linktype=dpkt.pcap.DLT_RAW)
