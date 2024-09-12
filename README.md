@@ -216,6 +216,7 @@ Füge die erstellten Zertifikate in den Ordner „certificates“ ein.
 
 ##6.1 HTTP Services
 Füge die HTTP-Services nach folgendem Muster hinzu:
+```json
 {
   "name": "httpservice", // Name des Services
   "target_ip": "host.docker.internal",
@@ -223,8 +224,10 @@ Füge die HTTP-Services nach folgendem Muster hinzu:
   "listen_port": 81,
   "http": true 
 }
+```
 ##6.2 HTTPS Services
 Füge die HTTPS Services nachfolgendem Muster hinzu:
+```json
 {
   "name": "httpsservice", 
   "target_ip": "host.docker.internal", 
@@ -236,6 +239,7 @@ Füge die HTTPS Services nachfolgendem Muster hinzu:
     "server_key": "private.key" 
   }
 }
+```
 ##7. PCAP-Locations
 Die PCAP files befinden sich in dem in der .env datei ausgewählten Ordner
 
