@@ -192,40 +192,40 @@ Written by:
 
 This tool is inspired by and partially based on the TCP proxy logic of [tcpproxy.py](https://github.com/ickerwx/tcpproxy/blob/master/tcpproxy.py).
 
-##CTF Setup Anleitung
+# CTF Setup Anleitung
 Diese Anleitung führt dich Schritt für Schritt durch die Einrichtung aller notwendigen Services für den CTF.
 
-##1. Starte alle benötigten Services
+# 1. Starte alle benötigten Services
 Stelle sicher, dass alle erforderlichen Services für den CTF gestartet sind.
 
-##2. TLS-Proxy klonen
+# 2. TLS-Proxy klonen
 Klonen den TLS-Proxy von GitHub:
 git clone “https://github.com/trimaa/ctf_proxy.git”
 
-##3. Erstelle die .env Datei
+# 3. Erstelle die .env Datei
 Erstelle die .env Datei basierend auf dem Beispiel aus env.example und passe sie gegebenenfalls an deine Bedürfnisse an.
 
-##4. Zertifikate erstellen
+# 4. Zertifikate erstellen
 Erstelle die notwendigen Zertifikate für die einzelnen Services.
 
-##5. Zertifikate hinzufügen
+# 5. Zertifikate hinzufügen
 Füge die erstellten Zertifikate in den Ordner „certificates“ ein.
 
-##6. Services hinzufügen
+# 6. Services hinzufügen
 Öffne die Config.json und füge die Services wie folgt ein : 
 
-##6.1 HTTP Services
+## 6.1 HTTP Services
 Füge die HTTP-Services nach folgendem Muster hinzu:
 ```json
 {
-  "name": "httpservice", // Name des Services
+  "name": "httpservice", 
   "target_ip": "host.docker.internal",
   "target_port": 80,
   "listen_port": 81,
   "http": true 
 }
 ```
-##6.2 HTTPS Services
+## 6.2 HTTPS Services
 Füge die HTTPS Services nachfolgendem Muster hinzu:
 ```json
 {
@@ -240,7 +240,7 @@ Füge die HTTPS Services nachfolgendem Muster hinzu:
   }
 }
 ```
-##7. PCAP-Locations
+# 7. PCAP-Locations
 Die PCAP files befinden sich in dem in der .env datei ausgewählten Ordner
 
 
