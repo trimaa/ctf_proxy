@@ -3,7 +3,7 @@ services:
     image: inanimate/httpd-ssl
     hostname: https_service
     ports:
-      - 443:443
+      - 444:443
 
 networks:
   default:

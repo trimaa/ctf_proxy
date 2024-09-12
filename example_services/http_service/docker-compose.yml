@@ -8,4 +8,4 @@ services:
 networks:
   default:
     name: ctf_network
-    external: false
+    external: true

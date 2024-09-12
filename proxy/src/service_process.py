@@ -13,6 +13,7 @@ import src.constants as constants
 import os
 import src.utils as utils
 import src.ssl_utils as ssl_utils
+import uuid
 
 def get_address_family(host):
     try:
@@ -61,20 +62,22 @@ def service_function(service: Service, global_config, count):
         utils.vprint('Ctrl+C detected, exiting...', global_config["verbose"])
         observer.stop()
         observer.join()
-        service.pcap_exporter.export()
+        service.export_all()
         sys.exit(0)
 
 def connection_thread_wrapper(local_socket: socket.socket, service: Service, global_config: dict, watchdog_handler, count):
     try:
         connection_thread(local_socket,service,global_config,watchdog_handler,count)
     except Exception as e:
-        service.pcap_exporter.export()
+        service.export_all()
         utils.vprint(f"Execption in Connection Thread : {str(e)}", global_config["verbose"])
 
 def connection_thread(local_socket: socket.socket, service: Service, global_config: dict, watchdog_handler, count):
     """This method is executed in a thread. It will relay data between the local
     host and the remote host, while letting modules work on the data before
     passing it on."""
+    session_id, pcap_exporter = service.add_exporter()
+
     remote_socket = socket.socket(get_address_family(service.target_ip))
 
     try:
@@ -97,14 +100,16 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
             for s in [remote_socket, local_socket]:
                 s.close()
             raise serr
-
+    
     # This loop ends when no more data is received on either the local or the
     # remote socket
     if service.http:
         stream = HTTPStream(global_config["max_stored_messages"], global_config["max_message_size"]) 
     else:
         stream = TCPStream(global_config["max_stored_messages"], global_config["max_message_size"])
-
+    pcap_exporter.add_source(local_socket)
+    pcap_exporter.add_destination(remote_socket)
+    pcap_exporter.add_three_way_handshake()
     connection_open = True
     while connection_open:
         ready_sockets, _, _ = select.select(
@@ -116,7 +121,7 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
                 remote_socket, local_socket = ssl_sockets
                 utils.vprint("SSL enabled", global_config["verbose"])
             except ssl.SSLError as e:
-                service.pcap_exporter.export()
+                service.export_remove_exporter(session_id)
                 if e.reason != "SSLV3_ALERT_CERTIFICATE_UNKNOWN":
                     print("SSL handshake failed", str(e))
                 break
@@ -127,6 +132,7 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
             try:
                 peer = sock.getpeername()
             except socket.error as serr:
+                service.export_remove_exporter(session_id)
                 if serr.errno == errno.ENOTCONN:
                     print(
                         f"{time.strftime('%Y%m%d-%H%M%S')}: Socket error (ENOTCONN) in connection_thread")
@@ -138,17 +144,16 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
                     print(
                         f"{time.strftime('%Y%m%d-%H%M%S')}: Socket exception in connection_thread")
                     raise serr
-                service.pcap_exporter.export()
 
             try:
                 stream.set_current_message(utils.receive_from(sock,service.http, global_config["verbose"]))
-                service.pcap_exporter.add_packet(stream.current_message,sock)
+                pcap_exporter.add_packet(stream.current_message,sock == local_socket)
             except socket.error as serr:
                 utils.vprint(
                     f"{time.strftime('%Y%m%d-%H%M%S')}: Socket exception in connection_thread: connection reset by local or remote host")
                 remote_socket.close()
                 local_socket.close()
-                service.pcap_exporter.export()
+                service.export_remove_exporter(session_id)
                 connection_open = False
                 break
 
@@ -159,10 +164,11 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
                 # going from client to service
                 if not len(stream.current_message):
                     utils.vprint(f"Connection from local client {peer[0]},{peer[1]}' closed", global_config["verbose"])
+                    pcap_exporter.add_teardown_handshake()  
                     remote_socket.close()
                     local_socket.close()
-                    connection_open = False                    
-                    service.pcap_exporter.export()
+                    connection_open = False                  
+                    service.export_remove_exporter(session_id)
                     break
 
                 utils.vprint(b'> > > in\n' + stream.current_message, global_config["verbose"])
@@ -173,10 +179,11 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
                 # going from service to client
                 if not len(stream.current_message):
                     utils.vprint(f"Connection from remote server {peer[0]},{peer[1]} closed", global_config["verbose"])
+                    pcap_exporter.add_teardown_handshake()        
                     remote_socket.close()
                     local_socket.close()
-                    connection_open = False                    
-                    service.pcap_exporter.export()
+                    connection_open = False           
+                    service.export_remove_exporter(session_id)
                     break
 
                 utils.vprint(b'< < < out\n' + stream.current_message, global_config["verbose"])
@@ -188,7 +195,9 @@ def connection_thread(local_socket: socket.socket, service: Service, global_conf
                 utils.vprint(f"Connection {peer[0]},{peer[1]} BLOCKED", global_config["verbose"])
                 count.value += 1
                 block_answer = global_config["keyword"] + " " + service.name + " " + attack
-                service.pcap_exporter.add_packet(block_answer.encode(),remote_socket)
+                pcap_exporter.add_packet(block_answer.encode(), False)
+                pcap_exporter.add_teardown_handshake()                   
+                service.export_remove_exporter(session_id)
                 utils.block_packet(local_socket, get_address_family(service.listen_ip), remote_socket, block_answer, global_config.get("dos", None))
                 connection_open = False
                 break

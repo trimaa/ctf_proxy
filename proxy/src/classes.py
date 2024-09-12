@@ -2,8 +2,8 @@ from watchdog.events import RegexMatchingEventHandler
 from src.pcap_export import PCAPExporter
 from src.filter_modules import import_modules
 from dataclasses import dataclass
-from typing import List
-
+from typing import Dict, List
+import uuid
 
 class ModuleWatchdog(RegexMatchingEventHandler):
     def __init__(self, regexes, in_module, out_module, name):
@@ -41,7 +41,37 @@ class Service:
             self.ssl = SSLConfig(**ssl)
         else:
             self.ssl = None
-        self.pcap_exporter = PCAPExporter(name)
+        self.exporters:Dict[str, PCAPExporter] = {}
+    def _generate_session_id(self) -> str:
+        return str(uuid.uuid4())
+
+    def add_exporter(self):
+        session_id = self._generate_session_id()
+        pcap_exporter = PCAPExporter(self.name)
+        if session_id in self.exporters:
+            print(f"Exporter for session {session_id} already exists.")
+        else:
+            self.exporters[session_id] = pcap_exporter
+            print(f"Added exporter for Session {session_id}")
+        return session_id, pcap_exporter
+    
+    def export_remove_exporter(self, session_id: str):
+        if session_id not in self.exporters:
+            print(f"Exporter for session {session_id} not found.")
+        else:
+            self.exporters[session_id].export()
+            del self.exporters[session_id]
+            print(f"Removed exporter for Session {session_id}")
+
+    def export_all(self):
+        for session_id, exporter in self.exporters.items():
+            try:
+                exporter.export()
+                self.remove_exporter(session_id)
+                print(f"Exported Data from Session {session_id}")
+            except Exception as e:
+                print(f"Error while exporting session {session_id}: {str(e)}")
+
 
 
 @dataclass
