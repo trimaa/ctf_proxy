@@ -12,13 +12,11 @@ class PCAPExporter:
         self.packets = []
         self.filename = service_name
 
-        # Initialisierung der SEQ- und ACK-Nummern
         self.client_seq = 0
         self.server_seq = 0
         self.client_ack = 0
         self.server_ack = 0
 
-        # Init ips and Ports
         self.src_ip = None
         self.dst_ip = None
         self.src_prt = None
@@ -47,7 +45,6 @@ class PCAPExporter:
             self.packets.append((ts, ack))
     
     def add_three_way_handshake(self):
-        """Fügt den TCP Three-Way Handshake zur Verbindung hinzu."""
 
         # 1. SYN: Client -> Server
         self.client_seq = 1000  # Zufällige SEQ-Nummer des Clients
@@ -62,10 +59,12 @@ class PCAPExporter:
         )
         eth_syn.data = ip_syn
         self.packets.append((datetime.datetime.now().timestamp(), eth_syn))
+        self.client_seq += 1
 
         # 2. SYN-ACK: Server -> Client
         self.server_seq = 2000  # Zufällige SEQ-Nummer des Servers
-        syn_ack = dpkt.tcp.TCP(sport=self.dst_prt, dport=self.src_prt, seq=self.server_seq, ack=self.client_seq + 1, flags=dpkt.tcp.TH_SYN | dpkt.tcp.TH_ACK)
+        self.server_ack = self.client_seq
+        syn_ack = dpkt.tcp.TCP(sport=self.dst_prt, dport=self.src_prt, seq=self.server_seq, ack=self.server_ack, flags=dpkt.tcp.TH_SYN | dpkt.tcp.TH_ACK)
         ip_syn_ack = dpkt.ip.IP(src=socket.inet_pton(self.dst_address_fam, self.dst_ip), dst=socket.inet_pton(self.src_address_fam, self.src_ip), p=dpkt.ip.IP_PROTO_TCP)
         ip_syn_ack.data = syn_ack
 
@@ -76,10 +75,11 @@ class PCAPExporter:
         )
         eth_syn_ack.data = ip_syn_ack
         self.packets.append((datetime.datetime.now().timestamp(), eth_syn_ack))
+        self.server_seq += 1
 
         # 3. ACK: Client -> Server (mit möglichen ersten Daten)
-        self.client_ack = self.server_seq + 1  # ACK vom Client auf die Server SEQ
-        ack = dpkt.tcp.TCP(sport=self.src_prt, dport=self.dst_prt, seq=0, ack=self.client_ack, flags=dpkt.tcp.TH_ACK)
+        self.client_ack = self.server_seq  # ACK vom Client auf die Server SEQ
+        ack = dpkt.tcp.TCP(sport=self.src_prt, dport=self.dst_prt, ack=self.client_ack, flags=dpkt.tcp.TH_ACK)
         ip_ack = dpkt.ip.IP(src=socket.inet_pton(self.src_address_fam, self.src_ip), dst=socket.inet_pton(self.dst_address_fam, self.dst_ip), p=dpkt.ip.IP_PROTO_TCP)
         ip_ack.data = ack
 
@@ -94,7 +94,6 @@ class PCAPExporter:
     def add_teardown_handshake(self):
         """Fügt den TCP Teardown Handshake zur Verbindung hinzu."""
 
-        # 1. FIN: Client -> Server
         fin = dpkt.tcp.TCP(sport=self.src_prt, dport=self.dst_prt, seq=self.client_seq, ack=0, flags=dpkt.tcp.TH_FIN)
         ip_fin = dpkt.ip.IP(src=socket.inet_pton(self.src_address_fam, self.src_ip), dst=socket.inet_pton(self.dst_address_fam, self.dst_ip), p=dpkt.ip.IP_PROTO_TCP)
         ip_fin.data = fin
@@ -150,8 +149,6 @@ class PCAPExporter:
 
     def convert_packet(self, data: bytes, is_client=True):
 
-        # Erstelle den IP-Header
-
         ether_header_client = dpkt.ethernet.Ethernet(
             src=b'\x45\x00\x1f\x6e\x00\x00',  # Dummy Quell-MAC-Adresse
             dst=b'\x00\x40\x6c\xac\xd0',      # Dummy Ziel-MAC-Adresse
@@ -168,16 +165,16 @@ class PCAPExporter:
         ip_proto_client = dpkt.ip.IP(src=socket.inet_pton(self.src_address_fam, self.src_ip), dst=socket.inet_pton(self.dst_address_fam, self.dst_ip), p=dpkt.ip.IP_PROTO_TCP)
         ip_proto_server = dpkt.ip.IP(dst=socket.inet_pton(self.src_address_fam, self.src_ip), src=socket.inet_pton(self.dst_address_fam, self.dst_ip), p=dpkt.ip.IP_PROTO_TCP)
 
-        # Verwalte SEQ und ACK-Nummern
+        
         if is_client:
             # Neues TCP-Paket von Client -> Server
-            tcp = dpkt.tcp.TCP(sport=self.src_prt, dport=self.dst_prt, seq=self.client_seq, ack=client_ack, flags=0)
+            tcp = dpkt.tcp.TCP(sport=self.src_prt, dport=self.dst_prt, seq=self.client_seq, ack=self.client_ack, flags=0)
             tcp.data = deepcopy(data)
             ip_proto_client.data = tcp
             ether_header_client.data = ip_proto_client
 
             self.client_seq += len(data)  # Inkrementiere die SEQ-Nummer basierend auf den gesendeten Daten
-            self.server_ack = self.client_se q # Server erwartet die nächste SEQ-Nummer vom Client
+            self.server_ack = self.client_seq # Server erwartet die nächste SEQ-Nummer vom Client
 
             # SERVER ACK
             tcp_server = dpkt.tcp.TCP(sport=self.dst_prt, dport=self.src_prt, seq=self.server_seq, ack=self.server_ack, flags=dpkt.tcp.TH_ACK)
@@ -197,7 +194,6 @@ class PCAPExporter:
             self.client_ack = self.server_seq  # Client erwartet die nächste SEQ-Nummer vom Server
 
             # CLIENT ACK
-
             tcp_client = dpkt.tcp.TCP(sport=self.src_prt, dport=self.dst_prt, seq=self.client_seq, ack=self.client_ack, flags=dpkt.tcp.TH_ACK)
             ip_proto_client.data = tcp_client
             ether_header_client.data = ip_proto_client
@@ -212,11 +208,11 @@ class PCAPExporter:
             directory = os.getenv('PCAP_DIR_PATH', './')
             os.makedirs(directory, exist_ok=True) 
             filename = f"{self.filename}_{timestamp}.pcap"
-            export_path = os.getenv('PCAP_DIR_PATH')
+            export_path = os.getenv('PCAP_EXPORT_PATH')
             os.makedirs(export_path, exist_ok=True)
             full_path = os.path.join(export_path, filename)
             with open(full_path, 'wb') as f:
-                writer = dpkt.pcap.Writer(f, linktype=dpkt.pcap.DLT_RAW)  # Ethernet Linktype
+                writer = dpkt.pcap.Writer(f)  # Ethernet Linktype
                 for ts, data in self.packets:
                     writer.writepkt(data, ts)
             self.packets = []
