@@ -3,7 +3,7 @@ services:
     image: httpd
     hostname: http_service
     ports:
-      - 80:80
+      - 81:80
 
 networks:
   default:

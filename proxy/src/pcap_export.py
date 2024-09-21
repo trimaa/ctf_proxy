@@ -208,9 +208,8 @@ class PCAPExporter:
             directory = os.getenv('PCAP_DIR_PATH', './')
             os.makedirs(directory, exist_ok=True) 
             filename = f"{self.filename}_{timestamp}.pcap"
-            export_path = os.getenv('PCAP_EXPORT_PATH')
-            os.makedirs(export_path, exist_ok=True)
-            full_path = os.path.join(export_path, filename)
+            
+            full_path = os.path.join(directory, filename)
             with open(full_path, 'wb') as f:
                 writer = dpkt.pcap.Writer(f)  # Ethernet Linktype
                 for ts, data in self.packets:
