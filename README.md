@@ -23,7 +23,7 @@ This architecture implements a failover mechanism through the usage of NGINX:
 - ***ctf_proxy* is up and running**: all traffic will flow through it, filtering every attack coming in the way
 - ***ctf_proxy* is down**: the proxy will be bypassed to ensure maximum service availability throughout the competition.
 
-## Configuration
+## Config
 You can configure each service to be proxied using `proxy/config/config.json`.
 
 ```json
